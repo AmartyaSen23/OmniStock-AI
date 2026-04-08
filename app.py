@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+yf.set_tz_cache_location("omnistock_cache") # Forces timezone data into a safe, writable folder!
 import pandas as pd
 import numpy as np
 import urllib.request
