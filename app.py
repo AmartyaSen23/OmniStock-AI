@@ -6,7 +6,6 @@ import numpy as np
 import urllib.request
 import xml.etree.ElementTree as ET
 import datetime
-import requests
 
 # --- NEW IMPORTS ---
 from keras.models import Sequential
@@ -53,12 +52,10 @@ with st.spinner("Booting Neural Cores..."):
 # 3. THE ENGINE FUNCTIONS
 # ---------------------------------------------------------
 def forge_universal_data(ticker, start_date, end_date):
-    # 1. THE PHANTOM MASK: Disguise the server as a human on Google Chrome
-    session = requests.Session()
-    session.headers['User-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    # Rip out the manual requests.Session() code!
+    # The upgraded yfinance engine handles stealth mode automatically now.
     
-    # Pass the disguised session to yfinance
-    df = yf.download(ticker, start=start_date, end=end_date, session=session, progress=False)
+    df = yf.download(ticker, start=start_date, end=end_date, progress=False)
     
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [col[0] for col in df.columns]
@@ -150,7 +147,7 @@ def get_lstm_prediction(ticker):
     current_price = last_60['Close'].iloc[-1]
     
     return current_price, predicted_price
-    
+
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
