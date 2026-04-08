@@ -1,0 +1,9 @@
+streamlit==1.32.0
+yfinance==0.2.37
+pandas
+numpy
+tensorflow-cpu==2.15.0
+scikit-learn
+nltk
+transformers
+torch
