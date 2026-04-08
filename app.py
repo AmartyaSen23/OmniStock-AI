@@ -1,6 +1,3 @@
-import os
-os.environ['TF_USE_LEGACY_KERAS'] = '1'
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -10,8 +7,8 @@ import xml.etree.ElementTree as ET
 import datetime
 
 # --- NEW IMPORTS ---
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout, Input
 from sklearn.preprocessing import MinMaxScaler
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
