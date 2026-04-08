@@ -111,11 +111,19 @@ def get_live_sentiment(ticker):
         return 0, "⚪ OFFLINE", 0.0, []
 
 def get_lstm_prediction(ticker):
+    # 1. Expand the radar to 150 days to guarantee 60 valid trading days
     end_d = datetime.date.today().strftime('%Y-%m-%d')
-    start_d = (datetime.date.today() - datetime.timedelta(days=120)).strftime('%Y-%m-%d')
+    start_d = (datetime.date.today() - datetime.timedelta(days=150)).strftime('%Y-%m-%d')
     df = forge_universal_data(ticker, start_d, end_d)
     
-    last_60 = df.tail(60)
+    # 2. THE CLOUD SHIELD: Catch rate-limits or missing data before it crashes the math
+    if df is None or df.empty or len(df) < 60:
+        st.error("🚨 Market API Intercepted: Yahoo Finance temporarily blocked the cloud server's IP (Rate Limit). Please wait 60 seconds and click Engage again.")
+        st.stop() # This instantly halts the app cleanly without showing red error text!
+        
+    # 3. Force the data into clean floats (Protects against string corruption)
+    last_60 = df.tail(60).astype(float)
+    
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(last_60)
     
@@ -130,7 +138,6 @@ def get_lstm_prediction(ticker):
     current_price = last_60['Close'].iloc[-1]
     
     return current_price, predicted_price
-
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
