@@ -119,18 +119,21 @@ def get_live_sentiment(ticker):
         return 0, "⚪ OFFLINE", 0.0, []
 
 def get_lstm_prediction(ticker):
-    # 1. Expand the radar to 150 days to guarantee 60 valid trading days
     end_d = datetime.date.today().strftime('%Y-%m-%d')
     start_d = (datetime.date.today() - datetime.timedelta(days=150)).strftime('%Y-%m-%d')
     df = forge_universal_data(ticker, start_d, end_d)
     
-    # 2. THE CLOUD SHIELD: Catch rate-limits or missing data before it crashes the math
     if df is None or df.empty or len(df) < 60:
-        st.error("🚨 Market API Intercepted: Yahoo Finance temporarily blocked the cloud server's IP (Rate Limit). Please wait 60 seconds and click Engage again.")
-        st.stop() # This instantly halts the app cleanly without showing red error text!
+        st.error("🚨 Market API Intercepted: Yahoo Finance temporarily blocked the cloud server's IP. Please wait 60 seconds and click Engage again.")
+        st.stop()
         
-    # 3. Force the data into clean floats (Protects against string corruption)
-    last_60 = df.tail(60).astype(float)
+    # --- THE TITANIUM SHIELD ---
+    # Explicitly lock in our 12 exact math columns. 
+    # This completely blocks any rogue strings ('Date', 'Ticker') from crashing the scaler!
+    core_features = ['Open', 'High', 'Low', 'Close', 'Volume', 'Returns', 'SMA_20', 'EMA_50', 'Volatility', 'RSI_14', 'MACD', 'Signal_Line']
+    
+    # Filter the dataframe to ONLY those 12 columns, then cast to float
+    last_60 = df[core_features].tail(60).astype(float)
     
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(last_60)
@@ -138,14 +141,16 @@ def get_lstm_prediction(ticker):
     X_latest = np.array([scaled_data])
     scaled_pred = lstm_model.predict(X_latest, verbose=0)
     
-    dummy = np.zeros((1, len(df.columns)))
-    close_idx = df.columns.tolist().index('Close')
+    # De-compress using the exact length of our core_features (12)
+    dummy = np.zeros((1, len(core_features)))
+    close_idx = core_features.index('Close')
     dummy[0, close_idx] = scaled_pred[0][0]
     
     predicted_price = scaler.inverse_transform(dummy)[0, close_idx]
     current_price = last_60['Close'].iloc[-1]
     
     return current_price, predicted_price
+    
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
