@@ -14,6 +14,7 @@ from sklearn.preprocessing import MinMaxScaler
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from transformers import pipeline
+import plotly.graph_objects as go
 # ---------------------------------------------------------
 # 1. PAGE CONFIGURATION & UI SETUP
 # ---------------------------------------------------------
@@ -146,7 +147,7 @@ def get_lstm_prediction(ticker):
     predicted_price = scaler.inverse_transform(dummy)[0, close_idx]
     current_price = last_60['Close'].iloc[-1]
     
-    return current_price, predicted_price
+    return current_price, predicted_price, df
 
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
@@ -188,6 +189,34 @@ if run_button:
         <p style="color:white;font-size:18px;margin-top:10px;">{strat}</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    # --- NEW: PLOTLY CANDLESTICK MATRIX ---
+    st.subheader(f"📊 Market Matrix: {target_ticker}")
+    
+    fig = go.Figure()
+    # The core Candlesticks
+    fig.add_trace(go.Candlestick(x=raw_data.index,
+                open=raw_data['Open'], high=raw_data['High'],
+                low=raw_data['Low'], close=raw_data['Close'],
+                name='Market Price'))
+    
+    # The Moving Averages (Trend Lines)
+    fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['SMA_20'], 
+                             line=dict(color='#00ff00', width=1.5), name='SMA 20'))
+    fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['EMA_50'], 
+                             line=dict(color='#ff00ff', width=1.5), name='EMA 50'))
+    
+    # UI Polish (Dark mode native)
+    fig.update_layout(
+        template='plotly_dark',
+        xaxis_rangeslider_visible=False,
+        height=500,
+        margin=dict(l=0, r=0, t=30, b=0),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    # Render the chart in Streamlit
+    st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     st.subheader("📰 Real-Time Intercepted Intelligence")
