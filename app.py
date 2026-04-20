@@ -323,6 +323,43 @@ if st.session_state.engine_engaged:
                 
     st.markdown("---")
 
+    # --- NEW: 30-DAY BACKTEST ENGINE ---
+    st.subheader("⏱️ 30-Day AI Backtest Engine")
+    st.write("Historical performance of the Engine's core momentum signals over the last 30 trading days.")
+    
+    # 1. Isolate the last 30 days
+    bt_data = raw_data.tail(30)
+    wins = 0
+    total_trades = 0
+    ai_return = 0.0
+    
+    # 2. Calculate Buy & Hold baseline
+    buy_hold_return = ((bt_data['Close'].iloc[-1] - bt_data['Close'].iloc[0]) / bt_data['Close'].iloc[0]) * 100
+    
+    # 3. Simulate AI Technical Trading
+    for i in range(1, len(bt_data)):
+        prev = bt_data.iloc[i-1]
+        curr = bt_data.iloc[i]
+        
+        # The AI Proxy Strategy: Buy when MACD > Signal AND RSI is not overbought
+        if prev['MACD'] > prev['Signal_Line'] and prev['RSI_14'] < 70:
+            total_trades += 1
+            daily_ret = (curr['Close'] - prev['Close']) / prev['Close']
+            ai_return += (daily_ret * 100)
+            if daily_ret > 0:
+                wins += 1
+                
+    # 4. Calculate Win Rate safely
+    win_rate = (wins / total_trades * 100) if total_trades > 0 else 0.0
+    
+    # 5. Display the Backtest Results
+    bt_col1, bt_col2, bt_col3 = st.columns(3)
+    bt_col1.metric("AI Strategy Return", f"{ai_return:+.2f}%")
+    bt_col2.metric("Buy & Hold Return", f"{buy_hold_return:+.2f}%", f"{(ai_return - buy_hold_return):+.2f}% vs Market")
+    bt_col3.metric("AI Win Rate (Accuracy)", f"{win_rate:.1f}%", f"{total_trades} Trades Executed")
+    
+    st.markdown("---")
+    
     # --- PLOTLY CANDLESTICK MATRIX ---
     st.subheader(f"📊 Market Matrix: {active_ticker}")
     
@@ -369,11 +406,23 @@ if st.session_state.engine_engaged:
         fig_macd.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="MACD & Signal Line")
         st.plotly_chart(fig_macd, use_container_width=True)
 
-    # --- THE UNDER-THE-HOOD EXPANDER ---
+    # --- THE UNDER-THE-HOOD EXPANDER & DATA EXPORT ---
     st.markdown("---")
     with st.expander("🔬 Under the Hood: Raw Engineering Data"):
         st.write("The exact multi-dimensional mathematical matrix feeding the LSTM Neural Network.")
+        
+        # Display the data
         st.dataframe(raw_data.iloc[::-1].head(15), use_container_width=True)
+        
+        # --- NEW: QUANT DATA EXPORT ---
+        csv_data = raw_data.to_csv().encode('utf-8')
+        st.download_button(
+            label="💾 Download Quant Matrix (CSV)",
+            data=csv_data,
+            file_name=f"{active_ticker}_omnistock_matrix.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
     # --- NEWS SECTION ---
     st.markdown("---")
