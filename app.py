@@ -6,6 +6,8 @@ import numpy as np
 import urllib.request
 import xml.etree.ElementTree as ET
 import datetime
+import urllib.parse
+import json
 
 # --- NEW IMPORTS ---
 from keras.models import Sequential
@@ -52,6 +54,36 @@ with st.spinner("Booting Neural Cores..."):
 # ---------------------------------------------------------
 # 3. THE ENGINE FUNCTIONS
 # ---------------------------------------------------------
+@st.cache_data(ttl=3600)
+def resolve_ticker(query):
+    if not query:
+        return "NVDA", None, []
+        
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = urllib.request.urlopen(req)
+        data = json.loads(response.read())
+        quotes = data.get('quotes', [])
+        
+        if not quotes:
+            return query.upper(), None, []
+            
+        # The top match
+        best_match = quotes[0]['symbol']
+        best_name = quotes[0].get('shortname', quotes[0].get('longname', best_match))
+        
+        # The alternative matches (in case the AI guessed wrong)
+        alts = []
+        for q in quotes[1:4]:
+            if 'symbol' in q:
+                name = q.get('shortname', q.get('longname', q['symbol']))
+                alts.append(f"{name} ({q['symbol']})")
+                
+        return best_match, best_name, alts
+    except Exception:
+        return query.upper(), None, []
+
 def forge_universal_data(ticker, start_date, end_date):
     # Rip out the manual requests.Session() code!
     # The upgraded yfinance engine handles stealth mode automatically now.
@@ -186,7 +218,17 @@ def get_lstm_prediction(ticker):
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
 st.sidebar.header("⚙️ Target Acquisition")
-target_ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL, NVDA, TSLA):", "NVDA").upper()
+raw_input = st.sidebar.text_input("Enter Company Name or Ticker (e.g., Tata, Meta, AAPL):", "NVDA").strip()
+target_ticker, resolved_name, alt_matches = resolve_ticker(raw_input)
+if resolved_name and raw_input.upper() != target_ticker.upper():
+    st.sidebar.success(f"💡 Auto-Targeting: **{resolved_name}** (`{target_ticker}`)")
+    
+    if alt_matches:
+        with st.sidebar.expander("Not what you meant?"):
+            st.write("Other possibilities:")
+            for alt in alt_matches:
+                st.markdown(f"- {alt}")
+
 run_button = st.sidebar.button("ENGAGE OMNISTOCK")
 
 # --- THE MEMORY BANK (SESSION STATE) ---
