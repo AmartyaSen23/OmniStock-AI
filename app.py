@@ -161,7 +161,7 @@ if run_button:
     
     with st.spinner("Forging Data & Running Neural Pipelines..."):
         # 1. Fetch Prices
-        curr_price, pred_price = get_lstm_prediction(target_ticker)
+        curr_price, pred_price, raw_data = get_lstm_prediction(target_ticker)
         exp_return = ((pred_price - curr_price) / curr_price) * 100
         
         # 2. Fetch Sentiment
