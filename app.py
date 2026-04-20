@@ -191,6 +191,33 @@ if run_button:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    # --- NEW: T+1 CAPITAL SIMULATOR ---
+    st.subheader("💰 T+1 Capital Simulator")
+    st.write("Simulate your projected returns based on the King Engine's LSTM forecast.")
+    
+    sim_col1, sim_col2 = st.columns([1, 2])
+    
+    with sim_col1:
+        # User inputs their cash stack
+        capital = st.number_input("Investment Capital ($):", min_value=10.0, value=1000.0, step=100.0)
+        
+    with sim_col2:
+        # The Math
+        shares_bought = capital / curr_price
+        projected_value = shares_bought * pred_price
+        projected_profit = projected_value - capital
+        
+        # Color coding the output
+        profit_color = "normal" if projected_profit == 0 else ("green" if projected_profit > 0 else "red")
+        trend_icon = "📈" if projected_profit > 0 else "📉"
+        
+        # Displaying the simulation
+        st.info(f"**Simulation Results:**\n"
+                f"- **Purchasing Power:** `{shares_bought:.4f} Shares`\n"
+                f"- **Projected T+1 Value:** `${projected_value:.2f}`\n"
+                f"- **Estimated P/L:** :{profit_color}[{trend_icon} **${projected_profit:+.2f}**]")
+                
+    st.markdown("---")
     # --- NEW: PLOTLY CANDLESTICK MATRIX ---
     st.subheader(f"📊 Market Matrix: {target_ticker}")
     
