@@ -217,6 +217,37 @@ if run_button:
     )
     # Render the chart in Streamlit
     st.plotly_chart(fig, use_container_width=True)
+
+    # --- NEW: STEP 2 - TECHNICAL SUB-PLOTS (RSI & MACD) ---
+    st.markdown("---")
+    st.subheader("🎛️ Technical Momentum Indicators")
+    
+    # Create two columns side-by-side for the gauges
+    col_rsi, col_macd = st.columns(2)
+    
+    with col_rsi:
+        # RSI Chart (With Overbought/Oversold Thresholds)
+        fig_rsi = go.Figure()
+        fig_rsi.add_trace(go.Scatter(x=raw_data.index, y=raw_data['RSI_14'], line=dict(color='#ff9900', width=2), name='RSI 14'))
+        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
+        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
+        fig_rsi.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="Relative Strength Index (RSI)")
+        st.plotly_chart(fig_rsi, use_container_width=True)
+        
+    with col_macd:
+        # MACD vs Signal Line Chart
+        fig_macd = go.Figure()
+        fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['MACD'], line=dict(color='#00bfff', width=2), name='MACD'))
+        fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['Signal_Line'], line=dict(color='#ff00ff', width=2), name='Signal'))
+        fig_macd.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="MACD & Signal Line")
+        st.plotly_chart(fig_macd, use_container_width=True)
+
+    # --- NEW: STEP 4 - THE UNDER-THE-HOOD EXPANDER ---
+    st.markdown("---")
+    with st.expander("🔬 Under the Hood: Raw Engineering Data"):
+        st.write("The exact multi-dimensional mathematical matrix feeding the LSTM Neural Network.")
+        # Reversing the dataframe so the newest dates are at the top!
+        st.dataframe(raw_data.iloc[::-1].head(15), use_container_width=True)
     
     st.markdown("---")
     st.subheader("📰 Real-Time Intercepted Intelligence")
