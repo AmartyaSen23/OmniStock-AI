@@ -156,23 +156,42 @@ st.sidebar.header("⚙️ Target Acquisition")
 target_ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL, NVDA, TSLA):", "NVDA").upper()
 run_button = st.sidebar.button("ENGAGE OMNISTOCK")
 
+# --- THE MEMORY BANK (SESSION STATE) ---
+# This stops the app from wiping the screen when the user clicks the simulator
+if 'engine_engaged' not in st.session_state:
+    st.session_state.engine_engaged = False
+
+# 1. FETCH AND STORE (Only runs when the button is clicked)
 if run_button:
+    st.session_state.engine_engaged = True
+    st.session_state.active_ticker = target_ticker
     st.sidebar.success(f"Uplink established for {target_ticker}")
     
     with st.spinner("Forging Data & Running Neural Pipelines..."):
-        # 1. Fetch Prices
-        curr_price, pred_price, raw_data = get_lstm_prediction(target_ticker)
-        exp_return = ((pred_price - curr_price) / curr_price) * 100
-        
-        # 2. Fetch Sentiment
-        sent_val, emotion, conf, top_news = get_live_sentiment(target_ticker)
-        
-        # 3. King Engine Logic
-        if exp_return > 1.0 and sent_val > 0.05 and conf >= 50: signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
-        elif exp_return < -1.0 and sent_val < -0.05: signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
-        elif exp_return > 1.0 and sent_val < -0.20: signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
-        elif exp_return < -1.0 and sent_val > 0.20: signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
-        else: signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
+        # We save the results directly into Streamlit's memory
+        st.session_state.curr_price, st.session_state.pred_price, st.session_state.raw_data = get_lstm_prediction(target_ticker)
+        st.session_state.sent_val, st.session_state.emotion, st.session_state.conf, st.session_state.top_news = get_live_sentiment(target_ticker)
+
+# 2. RENDER DASHBOARD (Reads from memory so it never resets!)
+if st.session_state.engine_engaged:
+    # Pull data from memory
+    curr_price = st.session_state.curr_price
+    pred_price = st.session_state.pred_price
+    raw_data = st.session_state.raw_data
+    sent_val = st.session_state.sent_val
+    emotion = st.session_state.emotion
+    conf = st.session_state.conf
+    top_news = st.session_state.top_news
+    active_ticker = st.session_state.active_ticker
+    
+    exp_return = ((pred_price - curr_price) / curr_price) * 100
+    
+    # 3. King Engine Logic
+    if exp_return > 1.0 and sent_val > 0.05 and conf >= 50: signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
+    elif exp_return < -1.0 and sent_val < -0.05: signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
+    elif exp_return > 1.0 and sent_val < -0.20: signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
+    elif exp_return < -1.0 and sent_val > 0.20: signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
+    else: signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
 
     # --- DISPLAY METRICS ---
     col1, col2, col3 = st.columns(3)
@@ -191,6 +210,7 @@ if run_button:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    
     # --- NEW: T+1 CAPITAL SIMULATOR ---
     st.subheader("💰 T+1 Capital Simulator")
     st.write("Simulate your projected returns based on the King Engine's LSTM forecast.")
@@ -207,34 +227,31 @@ if run_button:
         projected_value = shares_bought * pred_price
         projected_profit = projected_value - capital
         
-        # Color coding the output
         profit_color = "normal" if projected_profit == 0 else ("green" if projected_profit > 0 else "red")
         trend_icon = "📈" if projected_profit > 0 else "📉"
         
-        # Displaying the simulation
         st.info(f"**Simulation Results:**\n"
                 f"- **Purchasing Power:** `{shares_bought:.4f} Shares`\n"
                 f"- **Projected T+1 Value:** `${projected_value:.2f}`\n"
                 f"- **Estimated P/L:** :{profit_color}[{trend_icon} **${projected_profit:+.2f}**]")
                 
     st.markdown("---")
-    # --- NEW: PLOTLY CANDLESTICK MATRIX ---
-    st.subheader(f"📊 Market Matrix: {target_ticker}")
+
+    # --- PLOTLY CANDLESTICK MATRIX ---
+    st.subheader(f"📊 Market Matrix: {active_ticker}")
     
     fig = go.Figure()
-    # The core Candlesticks
+    
     fig.add_trace(go.Candlestick(x=raw_data.index,
                 open=raw_data['Open'], high=raw_data['High'],
                 low=raw_data['Low'], close=raw_data['Close'],
                 name='Market Price'))
     
-    # The Moving Averages (Trend Lines)
     fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['SMA_20'], 
                              line=dict(color='#00ff00', width=1.5), name='SMA 20'))
     fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['EMA_50'], 
                              line=dict(color='#ff00ff', width=1.5), name='EMA 50'))
     
-    # UI Polish (Dark mode native)
     fig.update_layout(
         template='plotly_dark',
         xaxis_rangeslider_visible=False,
@@ -242,18 +259,16 @@ if run_button:
         margin=dict(l=0, r=0, t=30, b=0),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    # Render the chart in Streamlit
+    
     st.plotly_chart(fig, use_container_width=True)
-
-    # --- NEW: STEP 2 - TECHNICAL SUB-PLOTS (RSI & MACD) ---
+    
+    # --- TECHNICAL SUB-PLOTS (RSI & MACD) ---
     st.markdown("---")
     st.subheader("🎛️ Technical Momentum Indicators")
     
-    # Create two columns side-by-side for the gauges
     col_rsi, col_macd = st.columns(2)
     
     with col_rsi:
-        # RSI Chart (With Overbought/Oversold Thresholds)
         fig_rsi = go.Figure()
         fig_rsi.add_trace(go.Scatter(x=raw_data.index, y=raw_data['RSI_14'], line=dict(color='#ff9900', width=2), name='RSI 14'))
         fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
@@ -262,20 +277,19 @@ if run_button:
         st.plotly_chart(fig_rsi, use_container_width=True)
         
     with col_macd:
-        # MACD vs Signal Line Chart
         fig_macd = go.Figure()
         fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['MACD'], line=dict(color='#00bfff', width=2), name='MACD'))
         fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['Signal_Line'], line=dict(color='#ff00ff', width=2), name='Signal'))
         fig_macd.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="MACD & Signal Line")
         st.plotly_chart(fig_macd, use_container_width=True)
 
-    # --- NEW: STEP 4 - THE UNDER-THE-HOOD EXPANDER ---
+    # --- THE UNDER-THE-HOOD EXPANDER ---
     st.markdown("---")
     with st.expander("🔬 Under the Hood: Raw Engineering Data"):
         st.write("The exact multi-dimensional mathematical matrix feeding the LSTM Neural Network.")
-        # Reversing the dataframe so the newest dates are at the top!
         st.dataframe(raw_data.iloc[::-1].head(15), use_container_width=True)
-    
+
+    # --- NEWS SECTION ---
     st.markdown("---")
     st.subheader("📰 Real-Time Intercepted Intelligence")
     for n in top_news:
