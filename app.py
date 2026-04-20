@@ -118,11 +118,20 @@ def get_live_sentiment(ticker):
 
 def get_fundamental_intel(ticker):
     try:
-        info = yf.Ticker(ticker).info
-        mcap = info.get('marketCap', 0)
-        pe = info.get('trailingPE', 'N/A')
-        high_52 = info.get('fiftyTwoWeekHigh', 'N/A')
-        low_52 = info.get('fiftyTwoWeekLow', 'N/A')
+        stock = yf.Ticker(ticker)
+        
+        # Bypassing the blocked .info endpoint by using .fast_info
+        fast = stock.fast_info
+        mcap = fast['market_cap']
+        high_52 = fast['year_high']
+        low_52 = fast['year_low']
+
+        # P/E Ratio is the only metric strictly locked inside .info
+        # We will try to fetch it, but gracefully catch it if Yahoo blocks us
+        try:
+            pe = stock.info.get('trailingPE', 'N/A')
+        except:
+            pe = 'Hidden'
 
         # Cleanly format the Market Cap (Trillions, Billions, Millions)
         if mcap >= 1e12: mcap_str = f"${mcap/1e12:.3f}T"
@@ -130,12 +139,14 @@ def get_fundamental_intel(ticker):
         elif mcap >= 1e6: mcap_str = f"${mcap/1e6:.3f}M"
         else: mcap_str = f"${mcap}"
 
-        pe_str = f"{pe:.2f}" if isinstance(pe, (int, float)) else pe
-        high_str = f"${high_52:.2f}" if isinstance(high_52, (int, float)) else high_52
-        low_str = f"${low_52:.2f}" if isinstance(low_52, (int, float)) else low_52
+        pe_str = f"{pe:.2f}" if isinstance(pe, (int, float)) else str(pe)
+        high_str = f"${high_52:.2f}" if isinstance(high_52, (int, float)) else str(high_52)
+        low_str = f"${low_52:.2f}" if isinstance(low_52, (int, float)) else str(low_52)
 
         return mcap_str, pe_str, high_str, low_str
-    except Exception:
+        
+    except Exception as e:
+        print(f"Intel Error: {e}")
         return "N/A", "N/A", "N/A", "N/A"
 
 def get_lstm_prediction(ticker):
