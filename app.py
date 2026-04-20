@@ -116,6 +116,28 @@ def get_live_sentiment(ticker):
     except:
         return 0, "⚪ OFFLINE", 0.0, []
 
+def get_fundamental_intel(ticker):
+    try:
+        info = yf.Ticker(ticker).info
+        mcap = info.get('marketCap', 0)
+        pe = info.get('trailingPE', 'N/A')
+        high_52 = info.get('fiftyTwoWeekHigh', 'N/A')
+        low_52 = info.get('fiftyTwoWeekLow', 'N/A')
+
+        # Cleanly format the Market Cap (Trillions, Billions, Millions)
+        if mcap >= 1e12: mcap_str = f"${mcap/1e12:.3f}T"
+        elif mcap >= 1e9: mcap_str = f"${mcap/1e9:.3f}B"
+        elif mcap >= 1e6: mcap_str = f"${mcap/1e6:.3f}M"
+        else: mcap_str = f"${mcap}"
+
+        pe_str = f"{pe:.2f}" if isinstance(pe, (int, float)) else pe
+        high_str = f"${high_52:.2f}" if isinstance(high_52, (int, float)) else high_52
+        low_str = f"${low_52:.2f}" if isinstance(low_52, (int, float)) else low_52
+
+        return mcap_str, pe_str, high_str, low_str
+    except Exception:
+        return "N/A", "N/A", "N/A", "N/A"
+
 def get_lstm_prediction(ticker):
     end_d = datetime.date.today().strftime('%Y-%m-%d')
     start_d = (datetime.date.today() - datetime.timedelta(days=150)).strftime('%Y-%m-%d')
@@ -171,6 +193,7 @@ if run_button:
         # We save the results directly into Streamlit's memory
         st.session_state.curr_price, st.session_state.pred_price, st.session_state.raw_data = get_lstm_prediction(target_ticker)
         st.session_state.sent_val, st.session_state.emotion, st.session_state.conf, st.session_state.top_news = get_live_sentiment(target_ticker)
+        st.session_state.mcap, st.session_state.pe, st.session_state.high52, st.session_state.low52 = get_fundamental_intel(target_ticker)
 
 # 2. RENDER DASHBOARD (Reads from memory so it never resets!)
 if st.session_state.engine_engaged:
@@ -194,10 +217,20 @@ if st.session_state.engine_engaged:
     else: signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
 
     # --- DISPLAY METRICS ---
+    st.subheader("📡 Live Neural Telemetry")
     col1, col2, col3 = st.columns(3)
     col1.metric("Current Price", f"${curr_price:.2f}")
     col2.metric("LSTM Predicted (T+1)", f"${pred_price:.2f}", f"{exp_return:+.2f}%")
     col3.metric("NLP Market Emotion", emotion, f"Conf: {conf:.1f}%")
+
+    # --- NEW: FUNDAMENTAL METRICS ---
+    st.markdown("---")
+    st.subheader("🏢 Fundamental Corporate Intel")
+    col4, col5, col6, col7 = st.columns(4)
+    col4.metric("Market Capitalization", st.session_state.mcap)
+    col5.metric("P/E Ratio (Valuation)", st.session_state.pe)
+    col6.metric("52-Week High", st.session_state.high52)
+    col7.metric("52-Week Low", st.session_state.low52)
     
     st.markdown("---")
     
