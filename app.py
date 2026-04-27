@@ -8,6 +8,9 @@ import xml.etree.ElementTree as ET
 import datetime
 import urllib.parse
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- NEW IMPORTS ---
 from keras.models import Sequential
@@ -213,7 +216,38 @@ def get_lstm_prediction(ticker):
     current_price = last_60['Close'].iloc[-1]
     
     return current_price, predicted_price, df
+def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
+    try:
+        # Tapping directly into Google's SMTP servers
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        
+        # Pulling from the local secrets vault
+        smtp_user = st.secrets.get("GMAIL_BOT_ADDRESS", "dummy_email")
+        smtp_pass = st.secrets.get("GMAIL_APP_PASSWORD", "dummy_key") 
+        
+        if smtp_pass == "dummy_key":
+            return False, "Vault Error: secrets.toml not found or key is missing."
 
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user 
+        msg['To'] = target_email
+        msg['Subject'] = f"⚡ OmniStock Alert: {signal} on {ticker}"
+        
+        body = f"KING ENGINE INTEL:\n\nTarget: {ticker}\nPredicted T+1 Return: {exp_return:+.2f}%\nSignal: {signal}\nStrategy: {strat}\n\n- OmniStock Automated System"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Ignition Sequence
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        return True, "Success"
+        
+    except Exception as e:
+        return False, str(e)
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
@@ -250,191 +284,273 @@ if run_button:
 
 # 2. RENDER DASHBOARD (Reads from memory so it never resets!)
 if st.session_state.engine_engaged:
-    # Pull data from memory
-    curr_price = st.session_state.curr_price
-    pred_price = st.session_state.pred_price
-    raw_data = st.session_state.raw_data
-    sent_val = st.session_state.sent_val
-    emotion = st.session_state.emotion
-    conf = st.session_state.conf
-    top_news = st.session_state.top_news
-    active_ticker = st.session_state.active_ticker
+    # --- NEW: STREAMLIT TABS ---
+    tab1, tab2 = st.tabs(["🎯 Single Target Matrix", "🌍 Omni-Scanner (Multi-Asset)"])
     
-    exp_return = ((pred_price - curr_price) / curr_price) * 100
-    
-    # 3. King Engine Logic (Tuned for Higher Sensitivity)
-    if exp_return > 0.5 and sent_val > 0.05 and conf >= 50: 
-        signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
-    elif exp_return < -0.5 and sent_val < -0.05: 
-        signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
-    elif exp_return > 0.5 and sent_val < -0.10: 
-        signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
-    elif exp_return < -0.5 and sent_val > 0.10: 
-        signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
-    elif exp_return > 0.2: 
-        signal, strat, color = "🟢 LEAN BUY", "Math shows upside, but sentiment is neutral. Scale in slowly.", "#2e8b57" # SeaGreen
-    elif exp_return < -0.2: 
-        signal, strat, color = "🔴 LEAN SELL", "Math shows decay, sentiment is neutral. Trim positions.", "#cd5c5c" # IndianRed
-    else: 
-        signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
+    with tab1:
+        # Pull data from memory
+        curr_price = st.session_state.curr_price
+        pred_price = st.session_state.pred_price
+        raw_data = st.session_state.raw_data
+        sent_val = st.session_state.sent_val
+        emotion = st.session_state.emotion
+        conf = st.session_state.conf
+        top_news = st.session_state.top_news
+        active_ticker = st.session_state.active_ticker
+        
+        exp_return = ((pred_price - curr_price) / curr_price) * 100
+        
+        # 3. King Engine Logic (Tuned for Higher Sensitivity)
+        if exp_return > 0.5 and sent_val > 0.05 and conf >= 50: signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
+        elif exp_return < -0.5 and sent_val < -0.05: signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
+        elif exp_return > 0.5 and sent_val < -0.10: signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
+        elif exp_return < -0.5 and sent_val > 0.10: signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
+        elif exp_return > 0.2: signal, strat, color = "🟢 LEAN BUY", "Math shows upside, but sentiment is neutral. Scale in slowly.", "#2e8b57" 
+        elif exp_return < -0.2: signal, strat, color = "🔴 LEAN SELL", "Math shows decay, sentiment is neutral. Trim positions.", "#cd5c5c" 
+        else: signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
 
-    # --- DISPLAY METRICS ---
-    st.subheader("📡 Live Neural Telemetry")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Current Price", f"${curr_price:.2f}")
-    col2.metric("LSTM Predicted (T+1)", f"${pred_price:.2f}", f"{exp_return:+.2f}%")
-    col3.metric("NLP Market Emotion", emotion, f"Conf: {conf:.1f}%")
+        # --- DISPLAY METRICS ---
+        st.subheader("📡 Live Neural Telemetry")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Current Price", f"${curr_price:.2f}")
+        col2.metric("LSTM Predicted (T+1)", f"${pred_price:.2f}", f"{exp_return:+.2f}%")
+        col3.metric("NLP Market Emotion", emotion, f"Conf: {conf:.1f}%")
 
-    # --- NEW: FUNDAMENTAL METRICS ---
-    st.markdown("---")
-    st.subheader("🏢 Fundamental Corporate Intel")
-    col4, col5, col6, col7 = st.columns(4)
-    col4.metric("Market Capitalization", st.session_state.mcap)
-    col5.metric("P/E Ratio (Valuation)", st.session_state.pe)
-    col6.metric("52-Week High", st.session_state.high52)
-    col7.metric("52-Week Low", st.session_state.low52)
-    
-    st.markdown("---")
-    
-    # --- FINAL DECISION BANNER ---
-    st.markdown(f"""
-    <div style="background-color:{color};padding:20px;border-radius:10px;text-align:center;">
-        <h2 style="color:white;margin:0;">KING ENGINE SIGNAL: {signal}</h2>
-        <p style="color:white;font-size:18px;margin-top:10px;">{strat}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # --- NEW: T+1 CAPITAL SIMULATOR ---
-    st.subheader("💰 T+1 Capital Simulator")
-    st.write("Simulate your projected returns based on the King Engine's LSTM forecast.")
-    
-    sim_col1, sim_col2 = st.columns([1, 2])
-    
-    with sim_col1:
-        # User inputs their cash stack
-        capital = st.number_input("Investment Capital ($):", min_value=10.0, value=1000.0, step=100.0)
+        # --- FUNDAMENTAL METRICS ---
+        st.markdown("---")
+        st.subheader("🏢 Fundamental Corporate Intel")
+        col4, col5, col6, col7 = st.columns(4)
+        col4.metric("Market Capitalization", st.session_state.mcap)
+        col5.metric("P/E Ratio (Valuation)", st.session_state.pe)
+        col6.metric("52-Week High", st.session_state.high52)
+        col7.metric("52-Week Low", st.session_state.low52)
+        st.markdown("---")
         
-    with sim_col2:
-        # The Math
-        shares_bought = capital / curr_price
-        projected_value = shares_bought * pred_price
-        projected_profit = projected_value - capital
+        # --- FINAL DECISION BANNER ---
+        st.markdown(f"""
+        <div style="background-color:{color};padding:20px;border-radius:10px;text-align:center;">
+            <h2 style="color:white;margin:0;">KING ENGINE SIGNAL: {signal}</h2>
+            <p style="color:white;font-size:18px;margin-top:10px;">{strat}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        profit_color = "normal" if projected_profit == 0 else ("green" if projected_profit > 0 else "red")
-        trend_icon = "📈" if projected_profit > 0 else "📉"
-        
-        st.info(f"**Simulation Results:**\n"
-                f"- **Purchasing Power:** `{shares_bought:.4f} Shares`\n"
-                f"- **Projected T+1 Value:** `${projected_value:.2f}`\n"
-                f"- **Estimated P/L:** :{profit_color}[{trend_icon} **${projected_profit:+.2f}**]")
-                
-    st.markdown("---")
+        # --- NEW: EMAIL DISPATCH UI ---
+        with st.expander("📧 Dispatch Automated Email Alert"):
+            alert_email = st.text_input("Target Email Address:")
+            if st.button("Transmit Intel"):
+                success = dispatch_email_alert(alert_email, active_ticker, signal, strat, exp_return)
+                if success:
+                    st.success(f"Intel securely transmitted to {alert_email}!")
+                else:
+                    st.warning("⚠️ SMTP Offline. (Add your SendGrid API Key to Streamlit Cloud 'Secrets' to enable transmission).")
 
-    # --- NEW: 30-DAY BACKTEST ENGINE ---
-    st.subheader("⏱️ 30-Day AI Backtest Engine")
-    st.write("Historical performance of the Engine's core momentum signals over the last 30 trading days.")
-    
-    # 1. Isolate the last 30 days
-    bt_data = raw_data.tail(30)
-    wins = 0
-    total_trades = 0
-    ai_return = 0.0
-    
-    # 2. Calculate Buy & Hold baseline
-    buy_hold_return = ((bt_data['Close'].iloc[-1] - bt_data['Close'].iloc[0]) / bt_data['Close'].iloc[0]) * 100
-    
-    # 3. Simulate AI Technical Trading
-    for i in range(1, len(bt_data)):
-        prev = bt_data.iloc[i-1]
-        curr = bt_data.iloc[i]
+        st.markdown("---")
         
-        # The AI Proxy Strategy: Buy when MACD > Signal AND RSI is not overbought
-        if prev['MACD'] > prev['Signal_Line'] and prev['RSI_14'] < 70:
-            total_trades += 1
-            daily_ret = (curr['Close'] - prev['Close']) / prev['Close']
-            ai_return += (daily_ret * 100)
-            if daily_ret > 0:
-                wins += 1
-                
-    # 4. Calculate Win Rate safely
-    win_rate = (wins / total_trades * 100) if total_trades > 0 else 0.0
-    
-    # 5. Display the Backtest Results
-    bt_col1, bt_col2, bt_col3 = st.columns(3)
-    bt_col1.metric("AI Strategy Return", f"{ai_return:+.2f}%")
-    bt_col2.metric("Buy & Hold Return", f"{buy_hold_return:+.2f}%", f"{(ai_return - buy_hold_return):+.2f}% vs Market")
-    bt_col3.metric("AI Win Rate (Accuracy)", f"{win_rate:.1f}%", f"{total_trades} Trades Executed")
-    
-    st.markdown("---")
-    
-    # --- PLOTLY CANDLESTICK MATRIX ---
-    st.subheader(f"📊 Market Matrix: {active_ticker}")
-    
-    fig = go.Figure()
-    
-    fig.add_trace(go.Candlestick(x=raw_data.index,
-                open=raw_data['Open'], high=raw_data['High'],
-                low=raw_data['Low'], close=raw_data['Close'],
-                name='Market Price'))
-    
-    fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['SMA_20'], 
-                             line=dict(color='#00ff00', width=1.5), name='SMA 20'))
-    fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['EMA_50'], 
-                             line=dict(color='#ff00ff', width=1.5), name='EMA 50'))
-    
-    fig.update_layout(
-        template='plotly_dark',
-        xaxis_rangeslider_visible=False,
-        height=500,
-        margin=dict(l=0, r=0, t=30, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # --- TECHNICAL SUB-PLOTS (RSI & MACD) ---
-    st.markdown("---")
-    st.subheader("🎛️ Technical Momentum Indicators")
-    
-    col_rsi, col_macd = st.columns(2)
-    
-    with col_rsi:
-        fig_rsi = go.Figure()
-        fig_rsi.add_trace(go.Scatter(x=raw_data.index, y=raw_data['RSI_14'], line=dict(color='#ff9900', width=2), name='RSI 14'))
-        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
-        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
-        fig_rsi.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="Relative Strength Index (RSI)")
-        st.plotly_chart(fig_rsi, use_container_width=True)
-        
-    with col_macd:
-        fig_macd = go.Figure()
-        fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['MACD'], line=dict(color='#00bfff', width=2), name='MACD'))
-        fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['Signal_Line'], line=dict(color='#ff00ff', width=2), name='Signal'))
-        fig_macd.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="MACD & Signal Line")
-        st.plotly_chart(fig_macd, use_container_width=True)
+        # NOTE: KEEP ALL YOUR EXISTING TAB 1 CODE HERE!
+        # --- DISPLAY METRICS ---
+        st.subheader("📡 Live Neural Telemetry")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Current Price", f"${curr_price:.2f}")
+        col2.metric("LSTM Predicted (T+1)", f"${pred_price:.2f}", f"{exp_return:+.2f}%")
+        col3.metric("NLP Market Emotion", emotion, f"Conf: {conf:.1f}%")
 
-    # --- THE UNDER-THE-HOOD EXPANDER & DATA EXPORT ---
-    st.markdown("---")
-    with st.expander("🔬 Under the Hood: Raw Engineering Data"):
-        st.write("The exact multi-dimensional mathematical matrix feeding the LSTM Neural Network.")
+        # --- NEW: FUNDAMENTAL METRICS ---
+        st.markdown("---")
+        st.subheader("🏢 Fundamental Corporate Intel")
+        col4, col5, col6, col7 = st.columns(4)
+        col4.metric("Market Capitalization", st.session_state.mcap)
+        col5.metric("P/E Ratio (Valuation)", st.session_state.pe)
+        col6.metric("52-Week High", st.session_state.high52)
+        col7.metric("52-Week Low", st.session_state.low52)
         
-        # Display the data
-        st.dataframe(raw_data.iloc[::-1].head(15), use_container_width=True)
+        st.markdown("---")
         
-        # --- NEW: QUANT DATA EXPORT ---
-        csv_data = raw_data.to_csv().encode('utf-8')
-        st.download_button(
-            label="💾 Download Quant Matrix (CSV)",
-            data=csv_data,
-            file_name=f"{active_ticker}_omnistock_matrix.csv",
-            mime="text/csv",
-            use_container_width=True
+        # --- FINAL DECISION BANNER ---
+        st.markdown(f"""
+        <div style="background-color:{color};padding:20px;border-radius:10px;text-align:center;">
+            <h2 style="color:white;margin:0;">KING ENGINE SIGNAL: {signal}</h2>
+            <p style="color:white;font-size:18px;margin-top:10px;">{strat}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # --- NEW: T+1 CAPITAL SIMULATOR ---
+        st.subheader("💰 T+1 Capital Simulator")
+        st.write("Simulate your projected returns based on the King Engine's LSTM forecast.")
+        
+        sim_col1, sim_col2 = st.columns([1, 2])
+        
+        with sim_col1:
+            # User inputs their cash stack
+            capital = st.number_input("Investment Capital ($):", min_value=10.0, value=1000.0, step=100.0)
+            
+        with sim_col2:
+            # The Math
+            shares_bought = capital / curr_price
+            projected_value = shares_bought * pred_price
+            projected_profit = projected_value - capital
+            
+            profit_color = "normal" if projected_profit == 0 else ("green" if projected_profit > 0 else "red")
+            trend_icon = "📈" if projected_profit > 0 else "📉"
+            
+            st.info(f"**Simulation Results:**\n"
+                    f"- **Purchasing Power:** `{shares_bought:.4f} Shares`\n"
+                    f"- **Projected T+1 Value:** `${projected_value:.2f}`\n"
+                    f"- **Estimated P/L:** :{profit_color}[{trend_icon} **${projected_profit:+.2f}**]")
+                    
+        st.markdown("---")
+
+        # --- NEW: 30-DAY BACKTEST ENGINE ---
+        st.subheader("⏱️ 30-Day AI Backtest Engine")
+        st.write("Historical performance of the Engine's core momentum signals over the last 30 trading days.")
+        
+        # 1. Isolate the last 30 days
+        bt_data = raw_data.tail(30)
+        wins = 0
+        total_trades = 0
+        ai_return = 0.0
+        
+        # 2. Calculate Buy & Hold baseline
+        buy_hold_return = ((bt_data['Close'].iloc[-1] - bt_data['Close'].iloc[0]) / bt_data['Close'].iloc[0]) * 100
+        
+        # 3. Simulate AI Technical Trading
+        for i in range(1, len(bt_data)):
+            prev = bt_data.iloc[i-1]
+            curr = bt_data.iloc[i]
+            
+            # The AI Proxy Strategy: Buy when MACD > Signal AND RSI is not overbought
+            if prev['MACD'] > prev['Signal_Line'] and prev['RSI_14'] < 70:
+                total_trades += 1
+                daily_ret = (curr['Close'] - prev['Close']) / prev['Close']
+                ai_return += (daily_ret * 100)
+                if daily_ret > 0:
+                    wins += 1
+                    
+        # 4. Calculate Win Rate safely
+        win_rate = (wins / total_trades * 100) if total_trades > 0 else 0.0
+        
+        # 5. Display the Backtest Results
+        bt_col1, bt_col2, bt_col3 = st.columns(3)
+        bt_col1.metric("AI Strategy Return", f"{ai_return:+.2f}%")
+        bt_col2.metric("Buy & Hold Return", f"{buy_hold_return:+.2f}%", f"{(ai_return - buy_hold_return):+.2f}% vs Market")
+        bt_col3.metric("AI Win Rate (Accuracy)", f"{win_rate:.1f}%", f"{total_trades} Trades Executed")
+        
+        st.markdown("---")
+        
+        # --- PLOTLY CANDLESTICK MATRIX ---
+        st.subheader(f"📊 Market Matrix: {active_ticker}")
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Candlestick(x=raw_data.index,
+                    open=raw_data['Open'], high=raw_data['High'],
+                    low=raw_data['Low'], close=raw_data['Close'],
+                    name='Market Price'))
+        
+        fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['SMA_20'], 
+                                line=dict(color='#00ff00', width=1.5), name='SMA 20'))
+        fig.add_trace(go.Scatter(x=raw_data.index, y=raw_data['EMA_50'], 
+                                line=dict(color='#ff00ff', width=1.5), name='EMA 50'))
+        
+        fig.update_layout(
+            template='plotly_dark',
+            xaxis_rangeslider_visible=False,
+            height=500,
+            margin=dict(l=0, r=0, t=30, b=0),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # --- TECHNICAL SUB-PLOTS (RSI & MACD) ---
+        st.markdown("---")
+        st.subheader("🎛️ Technical Momentum Indicators")
+        
+        col_rsi, col_macd = st.columns(2)
+        
+        with col_rsi:
+            fig_rsi = go.Figure()
+            fig_rsi.add_trace(go.Scatter(x=raw_data.index, y=raw_data['RSI_14'], line=dict(color='#ff9900', width=2), name='RSI 14'))
+            fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
+            fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
+            fig_rsi.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="Relative Strength Index (RSI)")
+            st.plotly_chart(fig_rsi, use_container_width=True)
+            
+        with col_macd:
+            fig_macd = go.Figure()
+            fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['MACD'], line=dict(color='#00bfff', width=2), name='MACD'))
+            fig_macd.add_trace(go.Scatter(x=raw_data.index, y=raw_data['Signal_Line'], line=dict(color='#ff00ff', width=2), name='Signal'))
+            fig_macd.update_layout(template='plotly_dark', height=300, margin=dict(l=0, r=0, t=30, b=0), title="MACD & Signal Line")
+            st.plotly_chart(fig_macd, use_container_width=True)
 
-    # --- NEWS SECTION ---
-    st.markdown("---")
-    st.subheader("📰 Real-Time Intercepted Intelligence")
-    for n in top_news:
-        st.write(f"- {n}")
+        # --- THE UNDER-THE-HOOD EXPANDER & DATA EXPORT ---
+        st.markdown("---")
+        with st.expander("🔬 Under the Hood: Raw Engineering Data"):
+            st.write("The exact multi-dimensional mathematical matrix feeding the LSTM Neural Network.")
+            
+            # Display the data
+            st.dataframe(raw_data.iloc[::-1].head(15), use_container_width=True)
+            
+            # --- NEW: QUANT DATA EXPORT ---
+            csv_data = raw_data.to_csv().encode('utf-8')
+            st.download_button(
+                label="💾 Download Quant Matrix (CSV)",
+                data=csv_data,
+                file_name=f"{active_ticker}_omnistock_matrix.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+        # --- NEWS SECTION ---
+        st.markdown("---")
+        st.subheader("📰 Real-Time Intercepted Intelligence")
+        for n in top_news:
+            st.write(f"- {n}")
+
+    # --- NEW: THE OMNI-SCANNER (TAB 2) ---
+    with tab2:
+        st.subheader("🌍 The Omni-Scanner: Multi-Asset Leaderboard")
+        st.write("Scan multiple assets simultaneously to find the strongest daily momentum setups. (Keep under 5 tickers to avoid cloud timeouts).")
+        
+        scan_input = st.text_input("Enter comma-separated tickers:", "NVDA, TSLA, AAPL, MSFT")
+        scan_btn = st.button("INITIATE GLOBAL SCAN")
+        
+        if scan_btn:
+            scan_list = [t.strip().upper() for t in scan_input.split(',')]
+            results_board = []
+            
+            with st.spinner("Processing multi-dimensional asset matrices..."):
+                for t in scan_list:
+                    try:
+                        # Rapidly ping the core engine for each ticker
+                        c_p, p_p, _ = get_lstm_prediction(t)
+                        s_v, emo, cnf, _ = get_live_sentiment(t)
+                        e_r = ((p_p - c_p) / c_p) * 100
+                        
+                        # Apply King Engine Logic
+                        if e_r > 0.5 and s_v > 0.05 and cnf >= 50: sig = "🟢 STRONG BUY"
+                        elif e_r < -0.5 and s_v < -0.05: sig = "🔴 STRONG SELL"
+                        elif e_r > 0.5 and s_v < -0.10: sig = "🟡 HOLD (BEAR TRAP)"
+                        elif e_r < -0.5 and s_v > 0.10: sig = "🟡 HOLD (BULL TRAP)"
+                        elif e_r > 0.2: sig = "🟢 LEAN BUY"
+                        elif e_r < -0.2: sig = "🔴 LEAN SELL"
+                        else: sig = "⚪ NEUTRAL"
+                        
+                        results_board.append({
+                            "Asset": t, 
+                            "Current ($)": round(c_p, 2), 
+                            "T+1 Forecast ($)": round(p_p, 2), 
+                            "Exp. Return (%)": round(e_r, 2), 
+                            "Market Emotion": emo, 
+                            "Engine Signal": sig
+                        })
+                    except:
+                        continue # Skip bad tickers so it doesn't crash the loop
+                        
+            if results_board:
+                df_results = pd.DataFrame(results_board)
+                # Sort by highest expected return
+                df_results = df_results.sort_values(by="Exp. Return (%)", ascending=False).reset_index(drop=True)
+                st.dataframe(df_results, use_container_width=True)
+                st.success("Global scan complete. Assets ranked by predictive yield.")

@@ -1,0 +1,6 @@
+# Ignore the Streamlit secrets vault
+.streamlit/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
