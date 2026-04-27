@@ -262,12 +262,21 @@ if st.session_state.engine_engaged:
     
     exp_return = ((pred_price - curr_price) / curr_price) * 100
     
-    # 3. King Engine Logic
-    if exp_return > 1.0 and sent_val > 0.05 and conf >= 50: signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
-    elif exp_return < -1.0 and sent_val < -0.05: signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
-    elif exp_return > 1.0 and sent_val < -0.20: signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
-    elif exp_return < -1.0 and sent_val > 0.20: signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
-    else: signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
+    # 3. King Engine Logic (Tuned for Higher Sensitivity)
+    if exp_return > 0.5 and sent_val > 0.05 and conf >= 50: 
+        signal, strat, color = "🟢 STRONG BUY", "Math + Emotion Aligned. Execute.", "green"
+    elif exp_return < -0.5 and sent_val < -0.05: 
+        signal, strat, color = "🔴 STRONG SELL", "Accelerated Decay Detected. Liquidate.", "red"
+    elif exp_return > 0.5 and sent_val < -0.10: 
+        signal, strat, color = "🟡 HOLD (BEAR TRAP)", "Math upside, but violent negative news.", "orange"
+    elif exp_return < -0.5 and sent_val > 0.10: 
+        signal, strat, color = "🟡 HOLD (BULL TRAP)", "Fake Pump Detected. Do not buy.", "orange"
+    elif exp_return > 0.2: 
+        signal, strat, color = "🟢 LEAN BUY", "Math shows upside, but sentiment is neutral. Scale in slowly.", "#2e8b57" # SeaGreen
+    elif exp_return < -0.2: 
+        signal, strat, color = "🔴 LEAN SELL", "Math shows decay, sentiment is neutral. Trim positions.", "#cd5c5c" # IndianRed
+    else: 
+        signal, strat, color = "⚪ NEUTRAL / HOLD", "No dominant confluence. Protect Capital.", "gray"
 
     # --- DISPLAY METRICS ---
     st.subheader("📡 Live Neural Telemetry")
