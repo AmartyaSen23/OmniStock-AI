@@ -11,6 +11,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formatdate, make_msgid  # <-- NEW: Metadata Forgers
 
 # --- NEW IMPORTS ---
 from keras.models import Sequential
@@ -218,11 +219,10 @@ def get_lstm_prediction(ticker):
     return current_price, predicted_price, df
 def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
     try:
-        # Tapping directly into Google's SMTP servers
+        # UPGRADE 1: Switch to Port 465 (Implicit SSL) - extremely reliable for cloud servers
         smtp_server = "smtp.gmail.com"
-        smtp_port = 587
+        smtp_port = 465 
         
-        # Pulling from the local secrets vault
         smtp_user = st.secrets.get("GMAIL_BOT_ADDRESS", "dummy_email")
         smtp_pass = st.secrets.get("GMAIL_APP_PASSWORD", "dummy_key") 
         
@@ -234,12 +234,15 @@ def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
         msg['To'] = target_email
         msg['Subject'] = f"⚡ OmniStock Alert: {signal} on {ticker}"
         
+        # UPGRADE 2: Inject mandatory cloud metadata to bypass Google's silent spam filter
+        msg['Date'] = formatdate(localtime=True)
+        msg['Message-ID'] = make_msgid()
+        
         body = f"KING ENGINE INTEL:\n\nTarget: {ticker}\nPredicted T+1 Return: {exp_return:+.2f}%\nSignal: {signal}\nStrategy: {strat}\n\n- OmniStock Automated System"
         msg.attach(MIMEText(body, 'plain'))
         
-        # Ignition Sequence
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
+        # UPGRADE 3: SMTP_SSL architecture (bypasses the STARTTLS handshake)
+        server = smtplib.SMTP_SSL(smtp_server, smtp_port)
         server.login(smtp_user, smtp_pass)
         server.send_message(msg)
         server.quit()
