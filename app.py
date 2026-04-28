@@ -219,7 +219,11 @@ def get_lstm_prediction(ticker):
     return current_price, predicted_price, df
 def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
     try:
-        # UPGRADE 1: Switch to Port 465 (Implicit SSL) - extremely reliable for cloud servers
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        from email.utils import formatdate, make_msgid
+        
         smtp_server = "smtp.gmail.com"
         smtp_port = 465 
         
@@ -232,25 +236,27 @@ def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
         msg = MIMEMultipart()
         msg['From'] = smtp_user 
         msg['To'] = target_email
-        msg['Subject'] = f"⚡ OmniStock Alert: {signal} on {ticker}"
-        
-        # UPGRADE 2: Inject mandatory cloud metadata to bypass Google's silent spam filter
+        msg['Subject'] = f"OmniStock Diagnostic: {ticker}"
         msg['Date'] = formatdate(localtime=True)
         msg['Message-ID'] = make_msgid()
         
-        body = f"KING ENGINE INTEL:\n\nTarget: {ticker}\nPredicted T+1 Return: {exp_return:+.2f}%\nSignal: {signal}\nStrategy: {strat}\n\n- OmniStock Automated System"
+        body = f"Tracer Bullet Payload.\nSignal: {signal}"
         msg.attach(MIMEText(body, 'plain'))
         
-        # UPGRADE 3: SMTP_SSL architecture (bypasses the STARTTLS handshake)
+        # Connect & Capture Server Responses
         server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
+        
+        # Capture the exact handshake codes from Google
+        login_resp = server.login(smtp_user, smtp_pass)
+        send_resp = server.send_message(msg)
         server.quit()
         
-        return True, "Success"
+        # Return the raw server data back to the UI
+        diagnostic_msg = f"Auth Code: {login_resp[0]} | Send Status: {send_resp}"
+        return True, diagnostic_msg
         
     except Exception as e:
-        return False, str(e)
+        return False, f"Crash: {str(e)}"
 # ---------------------------------------------------------
 # 4. FRONTEND DASHBOARD
 # ---------------------------------------------------------
@@ -337,16 +343,17 @@ if st.session_state.engine_engaged:
         </div>
         """, unsafe_allow_html=True)
         
-        # --- NEW: EMAIL DISPATCH UI ---
+        # --- EMAIL DISPATCH UI ---
         with st.expander("📧 Dispatch Automated Email Alert"):
             alert_email = st.text_input("Target Email Address:")
             if st.button("Transmit Intel"):
-                success = dispatch_email_alert(alert_email, active_ticker, signal, strat, exp_return)
+                success, diagnostic_log = dispatch_email_alert(alert_email, active_ticker, signal, strat, exp_return)
+                
                 if success:
-                    st.success(f"Intel securely transmitted to {alert_email}!")
+                    # Print the exact Google Server handshake!
+                    st.success(f"📡 {diagnostic_log}")
                 else:
-                    st.warning("⚠️ SMTP Offline. (Add your SendGrid API Key to Streamlit Cloud 'Secrets' to enable transmission).")
-
+                    st.error(f"⚠️ SMTP Failure: {diagnostic_log}")
         st.markdown("---")
         
         # NOTE: KEEP ALL YOUR EXISTING TAB 1 CODE HERE!
