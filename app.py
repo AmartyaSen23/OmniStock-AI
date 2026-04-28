@@ -58,7 +58,8 @@ with st.spinner("Booting Neural Cores..."):
 # ---------------------------------------------------------
 # 3. THE ENGINE FUNCTIONS
 # ---------------------------------------------------------
-@st.cache_data(ttl=3600)
+# --- INJECTION 1: Add max_entries to stop RAM hoarding ---
+@st.cache_data(ttl=3600, max_entries=5)
 def resolve_ticker(query):
     if not query:
         return "NVDA", None, []
@@ -88,6 +89,7 @@ def resolve_ticker(query):
     except Exception:
         return query.upper(), None, []
 
+@st.cache_data(ttl=3600, max_entries=5)
 def forge_universal_data(ticker, start_date, end_date):
     # Rip out the manual requests.Session() code!
     # The upgraded yfinance engine handles stealth mode automatically now.
@@ -215,6 +217,11 @@ def get_lstm_prediction(ticker):
     
     predicted_price = scaler.inverse_transform(dummy)[0, close_idx]
     current_price = last_60['Close'].iloc[-1]
+
+    # --- INJECTION 3: Aggressive Memory Wipe ---
+    import gc
+    del last_60, scaled_data, X_latest, dummy  # Nuke the variables from RAM
+    gc.collect()
     
     return current_price, predicted_price, df
 def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
@@ -527,7 +534,13 @@ if st.session_state.engine_engaged:
         scan_btn = st.button("INITIATE GLOBAL SCAN")
         
         if scan_btn:
+            # --- INJECTION 2: The Hard Limit ---
+            # Splits the input, cleans it, and forces a maximum of 3 tickers!
             scan_list = [t.strip().upper() for t in scan_input.split(',')]
+            
+            if len(scan_list) > 10:
+                st.warning("⚠️ Maximum 10 assets allowed per scan to protect cloud memory limits. Truncating list...")
+                scan_list = scan_list[:10] # Slices the list down to exactly 3
             results_board = []
             
             with st.spinner("Processing multi-dimensional asset matrices..."):
