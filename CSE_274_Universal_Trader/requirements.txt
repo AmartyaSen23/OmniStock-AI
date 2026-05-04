@@ -1,0 +1,12 @@
+streamlit==1.32.0
+yfinance
+pandas
+numpy
+plotly
+tensorflow==2.15.0
+scikit-learn
+nltk
+transformers
+torch
+websockets>=11.0
+protobuf
