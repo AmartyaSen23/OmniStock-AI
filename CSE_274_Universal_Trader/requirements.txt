@@ -10,3 +10,4 @@ transformers
 torch
 websockets>=11.0
 protobuf
+supabase
