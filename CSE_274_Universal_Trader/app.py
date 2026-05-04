@@ -182,7 +182,7 @@ def dispatch_email_alert(target_email, ticker, signal, strat, exp_return):
         msg['Date'] = formatdate(localtime=True)
         msg['Message-ID'] = make_msgid()
         
-        body = f"Tracer Bullet Payload.\nSignal: {signal}"
+        body = f"OmniStock Market Intelligence Update\n\nThe AI Engine has analyzed {ticker} and issued a {signal} rating.\n\nRegards,\nOmniStock Automated Systems"
         msg.attach(MIMEText(body, 'plain'))
         
         # Connect & Capture Server Responses
