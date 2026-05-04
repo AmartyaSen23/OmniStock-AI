@@ -11,3 +11,4 @@ torch
 websockets>=11.0
 protobuf
 supabase
+python-dotenv
