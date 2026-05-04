@@ -92,7 +92,7 @@ def forge_universal_data(ticker, start_date, end_date):
 def get_live_sentiment(ticker):
     """Pings the FastAPI backend for the NLP ensemble calculation."""
     try:
-        response = requests.post("https://amartyasen-omnistock-backend.hf.space/api/v1/analyze", json=payload)
+        response = requests.post("https://amartyasen-omnistock-backend.hf.space/api/v1/analyze", json={"ticker": ticker})
         if response.status_code == 200:
             data = response.json()["data"]
             # Swap out the placeholder for data.get("top_headlines", [])
@@ -148,7 +148,7 @@ def get_lstm_prediction(ticker):
 
     # 2. Ping the Backend for the heavy Math
     try:
-        response = requests.post("https://amartyasen-omnistock-backend.hf.space/api/v1/predict", json=payload)
+        response = requests.post("https://amartyasen-omnistock-backend.hf.space/api/v1/predict", json={"ticker": ticker})
         if response.status_code == 200:
             data = response.json()["data"]
             return data["current_price"], data["predicted_price"], df
