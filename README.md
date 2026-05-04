@@ -4,6 +4,7 @@ emoji: 📈
 colorFrom: gray
 colorTo: indigo
 sdk: docker
+app_file: CSE_274_Universal_Trader/Dockerfile
 pinned: false
 ---
 
