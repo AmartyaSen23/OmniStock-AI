@@ -148,7 +148,7 @@ def get_lstm_prediction(ticker):
 
     # 2. Ping the Backend for the heavy Math
     try:
-        response = requests.post("http://127.0.0.1:8000/api/v1/predict", json={"ticker": ticker})
+        response = requests.post("https://amartyasen-omnistock-backend.hf.space/api/v1/predict", json=payload)
         if response.status_code == 200:
             data = response.json()["data"]
             return data["current_price"], data["predicted_price"], df
@@ -238,6 +238,10 @@ if st.session_state.engine_engaged:
     # --- NEW: STREAMLIT TABS ---
     tab1, tab2 = st.tabs(["🎯 Single Target Matrix", "🌍 Omni-Scanner (Multi-Asset)"])
     
+    if "curr_price" not in st.session_state:
+        st.error("⚠️ Market data could not be retrieved. Yahoo Finance may be rate-limiting the server. Please try again in a few minutes.")
+        st.stop() # This halts the script here so it doesn't crash on line 243!
+
     with tab1:
         # Pull data from memory
         curr_price = st.session_state.curr_price
