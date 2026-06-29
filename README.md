@@ -1,4 +1,3 @@
-```markdown
 # ⚡ OmniStock AI: Universal Market Intelligence
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
@@ -14,9 +13,9 @@
 
 The system evaluates assets using a proprietary **King Engine Logic**—a confluence model that only triggers trading signals when mathematical momentum aligns with real-time market emotion.
 
-1.  **Quantitative Forge (LSTM):** Ingests 60-day historical matrices (combining Open, Close, Volume, Returns, SMA, EMA, Volatility, RSI, and MACD) into a stacked LSTM neural network to predict T+1 price action.
-2.  **Live Sentiment Intercept (NLP):** Scrapes real-time headlines via Google News RSS (with Yahoo fallback), piping the data through a dual-engine ensemble of **ProsusAI/FinBERT** (financial context) and **VADER** (polarity scoring) to gauge market fear and greed.
-3.  **Background Telemetry:** Utilizes FastAPI `BackgroundTasks` to silently push execution logs, latency metrics, and engine outputs to a **Supabase (PostgreSQL)** database without bottlenecking API response times.
+### 1.  **Quantitative Forge (LSTM):** Ingests 60-day historical matrices (combining Open, Close, Volume, Returns, SMA, EMA, Volatility, RSI, and MACD) into a stacked LSTM neural network to predict T+1 price action.
+### 2.  **Live Sentiment Intercept (NLP):** Scrapes real-time headlines via Google News RSS (with Yahoo fallback), piping the data through a dual-engine ensemble of **ProsusAI/FinBERT** (financial context) and **VADER** (polarity scoring) to gauge market fear and greed.
+### 3.  **Background Telemetry:** Utilizes FastAPI `BackgroundTasks` to silently push execution logs, latency metrics, and engine outputs to a **Supabase (PostgreSQL)** database without bottlenecking API response times.
 
 ## 🚀 Key Features
 
