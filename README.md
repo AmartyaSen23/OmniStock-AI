@@ -1,12 +1,105 @@
----
-title: Omnistock Backend
-emoji: 📈
-colorFrom: gray
-colorTo: indigo
-sdk: docker
-app_file: CSE_274_Universal_Trader/Dockerfile
-pinned: false
----
+```markdown
+# ⚡ OmniStock AI: Universal Market Intelligence
 
-# OmniStock AI Backend
-This is the FastAPI backend running the ML ensemble.
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?logo=fastapi)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.25+-FF4B4B.svg?logo=streamlit)
+![TensorFlow/Keras](https://img.shields.io/badge/TensorFlow-LSTM-FF6F00.svg?logo=tensorflow)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-FinBERT-F9AB00.svg?logo=huggingface)
+![Supabase](https://img.shields.io/badge/Supabase-Telemetry-3ECF8E.svg?logo=supabase)
+
+**OmniStock AI** is a high-performance quantitative trading engine that merges deep learning price forecasting with real-time NLP market sentiment analysis. Designed with a decoupled microservice architecture, it features a highly optimized FastAPI core that feeds analytical data to a dynamic Streamlit dashboard. 
+
+## 🧠 Core Architecture
+
+The system evaluates assets using a proprietary **King Engine Logic**—a confluence model that only triggers trading signals when mathematical momentum aligns with real-time market emotion.
+
+1.  **Quantitative Forge (LSTM):** Ingests 60-day historical matrices (combining Open, Close, Volume, Returns, SMA, EMA, Volatility, RSI, and MACD) into a stacked LSTM neural network to predict T+1 price action.
+2.  **Live Sentiment Intercept (NLP):** Scrapes real-time headlines via Google News RSS (with Yahoo fallback), piping the data through a dual-engine ensemble of **ProsusAI/FinBERT** (financial context) and **VADER** (polarity scoring) to gauge market fear and greed.
+3.  **Background Telemetry:** Utilizes FastAPI `BackgroundTasks` to silently push execution logs, latency metrics, and engine outputs to a **Supabase (PostgreSQL)** database without bottlenecking API response times.
+
+## 🚀 Key Features
+
+* **🎯 Single Target Matrix:** Interactive candlestick charting built with Plotly, overlaid with technical indicators (SMA, EMA, RSI, MACD).
+* **🌍 Omni-Scanner (Multi-Asset):** A cloud-optimized multi-threading scanner that ranks a watchlist of assets by predictive yield and sentiment confluence.
+* **⏱️ 30-Day AI Backtest Engine:** Instantly backtests the engine's core momentum signals against historical market data to calculate win rates and strategy returns vs. standard Buy & Hold.
+* **💰 T+1 Capital Simulator:** Calculates projected profit/loss based on user-defined capital and the neural network's forward-looking predictions.
+* **📧 Automated Dispatch:** Integrated SMTP pipeline to trigger diagnostic email alerts for specific trading signals.
+
+## 🛠️ Technology Stack
+
+| Domain | Technologies Used |
+| :--- | :--- |
+| **Frontend** | Streamlit, Plotly, Pandas |
+| **Backend API** | FastAPI, Pydantic, Uvicorn |
+| **Machine Learning** | Keras / TensorFlow (LSTM), Scikit-Learn (MinMaxScaler) |
+| **Natural Language Processing** | HuggingFace (FinBERT), NLTK (VADER) |
+| **Data Pipelines** | yfinance, XML/RSS Parsing, urllib |
+| **Database & Telemetry** | Supabase (PostgreSQL) |
+
+## 🏗️ Engineering Highlights (Under the Hood)
+
+* **Zero Cold-Starts:** AI models (`FinBERT`, `VADER`, `LSTM`) are initialized in the global scope of `engine.py` during server boot, ensuring API endpoints execute in milliseconds.
+* **Garbage Collection:** Aggressive manual memory management (`del`, `gc.collect()`) in data-heavy routes prevents RAM hoarding and server crashes.
+* **Stealth Scraping:** Custom HTTP headers and dynamic rate-limit fallbacks ensure continuous data ingestion even during aggressive firewall blocking.
+* **Asynchronous I/O:** Database logging is dispatched entirely in the background via FastAPI, isolating the UI from database latency.
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the Repository
+```bash
+git clone [https://github.com/yourusername/OmniStock-AI.git](https://github.com/yourusername/OmniStock-AI.git)
+cd OmniStock-AI
+
+```
+
+### 2. Environment Variables
+
+Create a `.env` file in the root directory for the backend, and a `.streamlit/secrets.toml` file for the frontend UI:
+
+**`.env`**
+
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_key
+
+```
+
+**`.streamlit/secrets.toml`**
+
+```toml
+GMAIL_BOT_ADDRESS = "your_email@gmail.com"
+GMAIL_APP_PASSWORD = "your_app_password"
+
+```
+
+### 3. Start the Core API (Backend)
+
+Ensure the `OmniStock_LSTM_Best.h5` weights file is located in your root directory.
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+```
+
+### 4. Boot the Dashboard (Frontend)
+
+In a separate terminal, launch the Streamlit interface:
+
+```bash
+streamlit run app.py
+
+```
+
+## 👨‍💻 Developer
+
+Developed by **Amartya Sen (Amar)**.
+
+## 📈 Disclaimer
+
+*OmniStock AI is built for educational and portfolio demonstration purposes. The predictions generated by the LSTM and Sentiment models do not constitute financial advice. Always perform your own due diligence before executing real-world trades.*
+
+```
+
+```
