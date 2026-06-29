@@ -94,7 +94,7 @@ streamlit run app.py
 
 ## 👨‍💻 Developer
 
-Developed by **Amartya Sen (Amar)**.
+Developed by **Amartya Sen | B.Tech in Artificial Intelligence and Machine Learning (Core CSE with Specialization)**.
 
 ## 📈 Disclaimer
 
